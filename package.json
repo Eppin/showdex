@@ -35,6 +35,7 @@
     "clean:prod": "yarn clean:prod:chrome; yarn clean:prod:firefox",
     "clean:prod:chrome": "yarn rimraf ./dist/chrome ./dist/*.chrome.zip ./dist/*.chrome.html",
     "clean:prod:firefox": "yarn rimraf ./dist/firefox ./dist/*.firefox.xpi ./dist/*.firefox.html",
+    "clean:prod:safari": "yarn rimraf ./dist/safari ./dist/*.safari.zip ./dist/*.safari.html",
     "dev": "yarn dev:chrome",
     "dev:re": "yarn cache:purge && yarn dev",
     "dev:chrome": "yarn clean:dev:chrome && NODE_ENV=development BUILD_TARGET=chrome node --conditions=development --experimental-specifier-resolution=node --trace-warnings -- ./scripts/dev",
@@ -46,7 +47,9 @@
     "build:chrome": "yarn clean:prod:chrome && NODE_ENV=production BUILD_TARGET=chrome node --conditions=production --experimental-specifier-resolution=node -- ./scripts/build",
     "build:chrome:re": "yarn cache:purge && yarn build:chrome",
     "build:firefox": "yarn clean:prod:firefox && NODE_ENV=production BUILD_TARGET=firefox node --conditions=production --experimental-specifier-resolution=node -- ./scripts/build",
-    "build:firefox:re": "yarn cache:purge && yarn build:firefox"
+    "build:firefox:re": "yarn cache:purge && yarn build:firefox",
+    "build:safari": "yarn clean:prod:safari && NODE_ENV=production BUILD_TARGET=safari node --conditions=production --experimental-specifier-resolution=node -- ./scripts/build",
+    "build:safari:re": "yarn cache:purge && yarn build:safari"
   },
   "config": {
     "cz-customizable": {
