@@ -1,5 +1,4 @@
-import { type CalcdexBattleField } from '@showdex/interfaces/calc';
-import { type CalcdexBattleState } from '@showdex/redux/store';
+import { type CalcdexBattleField, type CalcdexBattleState } from '@showdex/interfaces/calc';
 import { cloneField, sanitizeField } from '@showdex/utils/battle';
 import { nonEmptyObject } from '@showdex/utils/core';
 import { logger } from '@showdex/utils/debug';
@@ -44,6 +43,18 @@ export const syncField = (
 
     (newField as Record<keyof CalcdexBattleField, unknown>)[key] = value;
   });
+
+  newField.autoWeather = null;
+
+  if (newField.weather) {
+    newField.dirtyWeather = null;
+  }
+
+  newField.autoTerrain = null;
+
+  if (newField.terrain) {
+    newField.dirtyTerrain = null;
+  }
 
   return newField;
 };

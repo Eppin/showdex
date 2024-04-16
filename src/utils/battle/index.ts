@@ -1,3 +1,4 @@
+export * from './chunkStepQueueTurns';
 export * from './cloneBattleState';
 export * from './clonePlayerSideConditions';
 export * from './countActivePlayers';
@@ -10,8 +11,12 @@ export * from './detectPokemonIdent';
 export * from './detectSpeciesForme';
 export * from './detectToggledAbility';
 export * from './detectToggledMove';
+export * from './mapAutoBoosts';
+export * from './mapStellarMoves';
 export * from './mergeRevealedMoves';
 export * from './parsePokemonDetails';
+export * from './reassignPokemon';
+export * from './replaceBehemothMoves';
 export * from './ruinAbilitiesActive';
 export * from './sanitizeField';
 export * from './sanitizeMoveTrack';

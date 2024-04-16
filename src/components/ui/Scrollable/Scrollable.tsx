@@ -25,6 +25,10 @@ export interface ScrollableProps extends Omit<JSX.IntrinsicElements['div'], 'ref
 
   className?: string;
   style?: React.CSSProperties;
+  scrollClassName?: string;
+  scrollStyle?: React.CSSProperties;
+  contentClassName?: string;
+  contentStyle?: React.CSSProperties;
   children?: React.ReactNode;
 }
 
@@ -67,7 +71,13 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
   contentRef: contentRefFromProps,
   className,
   style,
+  scrollClassName,
+  scrollStyle,
+  contentClassName,
+  contentStyle,
   children,
+  onScroll,
+  onWheel,
   ...props
 }: ScrollableProps, forwardedRef): JSX.Element => {
   const simpleBarRef = React.useRef<SimpleBar>(null);
@@ -76,8 +86,10 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   React.useImperativeHandle(forwardedRef, () => containerRef.current);
-  React.useImperativeHandle(scrollRefFromProps, () => scrollRef.current);
-  React.useImperativeHandle(contentRefFromProps, () => contentRef.current);
+  // React.useImperativeHandle(scrollRefFromProps, () => scrollRef.current);
+  // React.useImperativeHandle(contentRefFromProps, () => contentRef.current);
+  React.useImperativeHandle(scrollRefFromProps, () => scrollRef.current || simpleBarRef.current?.getScrollElement() as HTMLDivElement);
+  React.useImperativeHandle(contentRefFromProps, () => contentRef.current || simpleBarRef.current?.getContentElement() as HTMLDivElement);
 
   // update (2023/11/09): the big Z added custom scrollbars to Showdown in battle-log.css of pokemon-showdown-client,
   // which is being applied to the <body> element (plus there's apparently no ez way of "restoring" the original scrollbar
@@ -88,7 +100,7 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
   //   || userAgent?.device?.type === 'mobile';
 
   React.useEffect(() => {
-    if (!containerRef.current) {
+    if (!containerRef.current || simpleBarRef.current) {
       return;
     }
 
@@ -116,15 +128,18 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
 
       // note: not a good idea to make this into a prop
       scrollbarMinSize: 40,
+      // clickOnTrack: true,
+      // autoHide: true,
     });
 
     // scrollRef.current = simpleBarRef.current.getScrollElement() as HTMLDivElement;
     // contentRef.current = simpleBarRef.current.getContentElement() as HTMLDivElement;
 
-    return () => simpleBarRef.current?.unMount();
-  }, [
-    // shouldRenderNative,
-  ]);
+    return () => {
+      simpleBarRef.current?.unMount();
+      simpleBarRef.current = null;
+    };
+  });
 
   const colorScheme = useColorScheme();
 
@@ -168,7 +183,7 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
         className,
       )}
       style={style}
-      data-simplebar
+      data-simplebar="init"
     >
       {/* {children} */}
 
@@ -181,11 +196,15 @@ export const Scrollable = React.forwardRef<HTMLDivElement, ScrollableProps>(({
           <div className={styles.offset}>
             <div
               ref={scrollRef}
-              className={styles.contentWrapper}
+              className={cx(styles.contentWrapper, scrollClassName)}
+              style={scrollStyle}
+              onScroll={onScroll}
+              onWheel={onWheel}
             >
               <div
                 ref={contentRef}
-                className={styles.content}
+                className={cx(styles.content, contentClassName)}
+                style={contentStyle}
               >
                 {children}
               </div>

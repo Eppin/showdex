@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import Svg from 'react-inlinesvg';
 import { Form, FormSpy } from 'react-final-form';
 // import { useHotkeys } from 'react-hotkeys-hook';
@@ -6,7 +7,6 @@ import cx from 'classnames';
 import { BuildInfo } from '@showdex/components/debug';
 import {
   type BadgeInstance,
-  type BaseButtonProps,
   Badge,
   BaseButton,
   Button,
@@ -15,52 +15,65 @@ import {
 } from '@showdex/components/ui';
 import { type ShowdexSettings } from '@showdex/interfaces/app';
 import {
+  useAuthUsername,
   useColorScheme,
+  useGlassyTerrain,
+  useHellodexState,
   useShowdexSettings,
   useUpdateSettings,
 } from '@showdex/redux/store';
+import { findPlayerTitle } from '@showdex/utils/app';
 import {
-  clearStoredItem,
   env,
   getResourceUrl,
-  getStoredItem,
   nonEmptyObject,
   readClipboardText,
   writeClipboardText,
 } from '@showdex/utils/core';
 import { logger } from '@showdex/utils/debug';
 import { dehydrateSettings, hydrateSettings, possiblyDehydrated } from '@showdex/utils/hydro';
+import { clearPresetsDb } from '@showdex/utils/storage';
+import { AutoFeaturesSettingsPane } from './AutoFeaturesSettingsPane';
 import { CalcdexSettingsPane } from './CalcdexSettingsPane';
-import { HellodexSettingsPane } from './HellodexSettingsPane';
-import { ShowdexSettingsPane } from './ShowdexSettingsPane';
-import { ShowdownSettingsPane } from './ShowdownSettingsPane';
+import { GeneralSettingsPane } from './GeneralSettingsPane';
+// import { HellodexSettingsPane } from './HellodexSettingsPane';
+import { HonkdexSettingsPane } from './HonkdexSettingsPane';
+import { MetagameSettingsPane } from './MetagameSettingsPane';
+import { PresetsSettingsPane } from './PresetsSettingsPane';
+// import { ShowdexSettingsPane } from './ShowdexSettingsPane';
+// import { ShowdownSettingsPane } from './ShowdownSettingsPane';
+import { VisibilitySettingsPane } from './VisibilitySettingsPane';
 import styles from './SettingsPane.module.scss';
 
 export interface SettingsPaneProps {
   className?: string;
   style?: React.CSSProperties;
-  inBattle?: boolean;
-  onRequestClose?: BaseButtonProps['onPress'];
+  onRequestClose?: () => void;
 }
 
 const l = logger('@showdex/pages/Hellodex/SettingsPane');
 
-const getPresetCacheSize = () => (getStoredItem('storage-preset-cache-key')?.length ?? 0) * 2;
+// const getPresetCacheSize = () => (readLocalStorageItem('local-storage-deprecated-preset-cache-key')?.length ?? 0) * 2;
 
 /**
  * Showdex settings UI.
  *
- * @todo This file is gross. It's over 1500 lines.
- * @warning Also a warning lol.
  * @since 1.0.3
  */
 export const SettingsPane = ({
   className,
   style,
-  inBattle,
   onRequestClose,
 }: SettingsPaneProps): JSX.Element => {
+  const { t, i18n } = useTranslation('settings');
   const colorScheme = useColorScheme();
+  const glassyTerrain = useGlassyTerrain();
+  const state = useHellodexState();
+  const inBattle = ['xs', 'sm'].includes(state.containerSize);
+
+  const authUsername = useAuthUsername();
+  const authTitle = React.useMemo(() => findPlayerTitle(authUsername, true), [authUsername]);
+
   const settings = useShowdexSettings();
   const updateSettings = useUpdateSettings();
 
@@ -92,10 +105,6 @@ export const SettingsPane = ({
         return;
       }
 
-      // const importedSettings = env('build-target') === 'firefox'
-      //   // ? await (browser.runtime.sendMessage('clipboardReadText') as Promise<string>)
-      //   ? await dispatchShowdexEvent<string>({ type: 'clipboardReadText' })
-      //   : await navigator.clipboard.readText();
       const importedSettings = await readClipboardText();
 
       l.debug(
@@ -128,6 +137,12 @@ export const SettingsPane = ({
       }
 
       const hydratedSettings = hydrateSettings(importedSettings);
+
+      // nt ^_~
+      if (!authTitle) {
+        hydratedSettings.glassyTerrain = false;
+        hydratedSettings.hellodex.showDonateButton = true;
+      }
 
       if (!hydratedSettings) {
         l.debug(
@@ -169,7 +184,6 @@ export const SettingsPane = ({
         return void exportFailedBadgeRef.current?.show();
       }
 
-      // await navigator.clipboard.writeText(dehydratedSettings);
       await writeClipboardText(dehydratedSettings);
       exportBadgeRef.current?.show();
     } catch (error) {
@@ -207,7 +221,7 @@ export const SettingsPane = ({
           return void defaultsFailedBadgeRef.current?.show();
         }
 
-        await navigator.clipboard.writeText(dehydratedDefaults);
+        await writeClipboardText(dehydratedDefaults);
         defaultsBadgeRef.current?.show();
       } catch (error) {
         if (__DEV__) {
@@ -243,36 +257,57 @@ export const SettingsPane = ({
   ]);
   */
 
-  const [presetCacheSize, setPresetCacheSize] = React.useState(0);
-  const presetCacheTimeout = React.useRef<NodeJS.Timeout>(null);
+  // const [presetCacheSize, setPresetCacheSize] = React.useState(0);
+  // const [maxCacheSize, setMaxCacheSize] = React.useState(0);
+  // const presetCacheTimeout = React.useRef<NodeJS.Timeout>(null);
 
+  /*
   // only updates the state when the size actually changes
-  const updatePresetCacheSize = () => {
-    const size = getPresetCacheSize();
-
-    if (size === presetCacheSize) {
+  const updatePresetCacheSize = () => void (async () => {
+    if (typeof navigator?.storage?.estimate !== 'function') {
       return;
     }
 
-    setPresetCacheSize(size);
-  };
+    // const size = getPresetCacheSize();
+    const estimates = await navigator.storage.estimate();
 
-  // every 30 sec, check the preset cache size lmfao
+    // doesn't appear to be a way to easily measure the size of just Showdex's IndexedDB,
+    // but at the time of writing (2023/12/28), next to Permutive's 2 object stores w/ 4 total entries,
+    // safe to say majority of the size is from our object stores lmao
+    const {
+      quota,
+      usage,
+      // usageDetails: { indexedDB }, // not typed for some reason, but appears on Chrome
+    } = estimates || {};
+
+    if ((usage || 0) !== presetCacheSize) {
+      setPresetCacheSize(usage);
+    }
+
+    if ((quota || 0) !== maxCacheSize) {
+      setMaxCacheSize(quota);
+    }
+  })();
+  */
+
+  // check the estimated preset cache size on mount only
+  /*
   React.useEffect(() => {
-    if (presetCacheTimeout.current) {
-      return;
-    }
+    // if (presetCacheTimeout.current) {
+    //   return;
+    // }
 
-    presetCacheTimeout.current = setTimeout(updatePresetCacheSize, 30000);
+    // presetCacheTimeout.current = setTimeout(updatePresetCacheSize, 30000);
     updatePresetCacheSize();
 
-    return () => {
-      if (presetCacheTimeout.current) {
-        clearTimeout(presetCacheTimeout.current);
-        presetCacheTimeout.current = null;
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- empty deps are intentional to only run on first mount
+    // return () => {
+    //   if (presetCacheTimeout.current) {
+    //     clearTimeout(presetCacheTimeout.current);
+    //     presetCacheTimeout.current = null;
+    //   }
+    // };
+  });
+  */
 
   const handleSettingsChange = (values: DeepPartial<ShowdexSettings>) => {
     if (!nonEmptyObject(values)) {
@@ -280,27 +315,26 @@ export const SettingsPane = ({
     }
 
     const {
+      locale: nextLocale,
       // colorScheme: newColorScheme,
       calcdex,
     } = values;
 
-    /*
-    if (newColorScheme && colorScheme !== newColorScheme) {
-      // note: Storage is a native Web API (part of the Web Storage API), but Showdown redefines it with its own Storage() function
-      // also, Dex.prefs() is an alias of Storage.prefs(), but w/o the `value` and `save` args
-      (Storage as unknown as Showdown.ClientStorage)?.prefs?.('theme', newColorScheme, true);
-
-      // this is how Showdown natively applies the theme lmao
-      // see: https://github.com/smogon/pokemon-showdown-client/blob/1ea5210a360b64ede48813d9572b59b7f3d7365f/js/client.js#L473
-      $?.('html').toggleClass('dark', newColorScheme === 'dark');
+    if (nextLocale && settings?.locale !== nextLocale) {
+      void i18n.changeLanguage(nextLocale);
     }
-    */
 
     // clear the cache if the user intentionally set preset caching to "never" (i.e., `0` days)
     // intentionally checking 0 as to ignore null & undefined values
-    if (presetCacheSize && calcdex?.maxPresetAge === 0) {
-      clearStoredItem('storage-preset-cache-key');
-      updatePresetCacheSize();
+    if (calcdex?.maxPresetAge === 0) {
+      // void (async () => {
+      //   // purgeLocalStorageItem('local-storage-deprecated-preset-cache-key');
+      //   await clearPresetsDb();
+      //   // updatePresetCacheSize();
+      //   setPresetCacheSize(0); // kekw
+      // })();
+
+      void clearPresetsDb();
     }
 
     updateSettings(values);
@@ -310,14 +344,15 @@ export const SettingsPane = ({
     <div
       className={cx(
         styles.container,
-        !!colorScheme && styles[colorScheme],
         inBattle && styles.inBattle,
+        !!colorScheme && styles[colorScheme],
+        glassyTerrain && styles.glassy,
         className,
       )}
       style={style}
     >
       <Tooltip
-        content="Close Showdex Settings"
+        content={t('pane.header.close.tooltip')} // oh shit it's t-pane
         offset={[0, 10]}
         delay={[1000, 50]}
         trigger="mouseenter"
@@ -326,7 +361,7 @@ export const SettingsPane = ({
         <BaseButton
           className={styles.closeButton}
           display="inline"
-          aria-label="Close Showdex Settings"
+          aria-label={t('pane.header.close.tooltip')}
           onPress={onRequestClose}
         >
           <Svg
@@ -377,7 +412,7 @@ export const SettingsPane = ({
                   />
 
                   <div className={styles.title}>
-                    Settings
+                    {t('pane.header.title', 'Settings')}
                   </div>
                 </div>
 
@@ -388,55 +423,51 @@ export const SettingsPane = ({
                       styles.importButton,
                       !!prevSettings && styles.undoButton,
                     )}
-                    label={prevSettings ? 'Undo?' : 'Import'}
+                    label={t(`pane.header.import.${prevSettings ? 'undoLabel' : 'label'}`)}
                     tooltip={(
                       <div className={cx(styles.tooltipContent, styles.importTooltip)}>
                         <Badge
                           ref={importBadgeRef}
                           className={styles.importBadge}
-                          label="Imported"
+                          label={t('pane.header.import.importedBadge', 'Imported')}
                           color="blue"
                         />
 
                         <Badge
                           ref={importFailedBadgeRef}
                           className={styles.importBadge}
-                          label="Failed"
+                          label={t('pane.header.import.failedBadge', 'Failed')}
                           color="red"
                         />
 
-                        Import Settings from Clipboard
+                        {t('pane.header.import.tooltip')}
                       </div>
                     )}
                     tooltipTrigger={['focus', 'mouseenter']}
-                    // tooltipDisabled={!!prevSettings}
                     hoverScale={1}
                     onPress={handleSettingsImport}
                   />
 
                   <Button
-                    className={cx(
-                      styles.actionButton,
-                      styles.exportButton,
-                    )}
-                    label="Export"
+                    className={cx(styles.actionButton, styles.exportButton)}
+                    label={t('pane.header.export.label')}
                     tooltip={(
                       <div className={cx(styles.tooltipContent, styles.importTooltip)}>
                         <Badge
                           ref={exportBadgeRef}
                           className={styles.importBadge}
-                          label="Copied!"
+                          label={t('pane.header.export.exportedBadge')}
                           color="green"
                         />
 
                         <Badge
                           ref={exportFailedBadgeRef}
                           className={styles.importBadge}
-                          label="Failed"
+                          label={t('pane.header.export.failedBadge')}
                           color="red"
                         />
 
-                        Export Settings to Clipboard
+                        {t('pane.header.export.tooltip')}
                       </div>
                     )}
                     tooltipTrigger={['focus', 'mouseenter']}
@@ -444,64 +475,91 @@ export const SettingsPane = ({
                     onPress={handleSettingsExport}
                   />
 
-                  {
-                    !inBattle &&
-                    <Button
-                      className={cx(
-                        styles.actionButton,
-                        styles.defaultsButton,
-                      )}
-                      label="Defaults"
-                      tooltip={(
-                        <div className={cx(styles.tooltipContent, styles.importTooltip)}>
-                          <Badge
-                            ref={defaultsBadgeRef}
-                            className={styles.importBadge}
-                            label="Copied!"
-                            color="green"
-                          />
+                  <Button
+                    className={cx(styles.actionButton, styles.defaultsButton)}
+                    label={t('pane.header.defaults.label')}
+                    tooltip={(
+                      <div className={cx(styles.tooltipContent, styles.importTooltip)}>
+                        <Badge
+                          ref={defaultsBadgeRef}
+                          className={styles.importBadge}
+                          label={t('pane.header.defaults.exportedBadge')}
+                          color="green"
+                        />
 
-                          <Badge
-                            ref={defaultsFailedBadgeRef}
-                            className={styles.importBadge}
-                            label="Failed"
-                            color="red"
-                          />
+                        <Badge
+                          ref={defaultsFailedBadgeRef}
+                          className={styles.importBadge}
+                          label={t('pane.header.defaults.failedBadge')}
+                          color="red"
+                        />
 
-                          Export Defaults to Clipboard
-                        </div>
-                      )}
-                      tooltipTrigger={['focus', 'mouseenter']}
-                      hoverScale={1}
-                      onPress={handleSettingsDefaults}
-                    />
-                  }
+                        {t('pane.header.defaults.tooltip')}
+                      </div>
+                    )}
+                    tooltipTrigger={['focus', 'mouseenter']}
+                    hoverScale={1}
+                    onPress={handleSettingsDefaults}
+                  />
 
                   <div className={styles.closePlaceholder} />
                 </div>
               </div>
 
-              <ShowdexSettingsPane
+              <GeneralSettingsPane
+                value={values}
+                inBattle={inBattle}
+                special={!!authTitle}
+              />
+
+              <CalcdexSettingsPane
+                value={values}
                 inBattle={inBattle}
               />
 
+              <PresetsSettingsPane
+                value={values}
+                inBattle={inBattle}
+              />
+
+              <AutoFeaturesSettingsPane
+                inBattle={inBattle}
+              />
+
+              <MetagameSettingsPane
+                value={values}
+                inBattle={inBattle}
+              />
+
+              <VisibilitySettingsPane
+                value={values}
+                inBattle={inBattle}
+              />
+
+              <HonkdexSettingsPane />
+
+              {/* <ShowdexSettingsPane
+                inBattle={inBattle}
+                special={!!authTitle}
+              />
+
               <HellodexSettingsPane
-                value={values?.hellodex}
+                special={!!authTitle}
               />
 
               <CalcdexSettingsPane
                 value={values?.calcdex}
-                presetCacheSize={presetCacheSize}
+                // presetCacheSize={presetCacheSize}
+                // maxCacheSize={maxCacheSize}
                 inBattle={inBattle}
               />
 
-              <ShowdownSettingsPane>
-                {/* temporary spacer cause too lazy to do it in CSS lol */}
-                <div style={{ height: 5 }} />
-              </ShowdownSettingsPane>
+              <HonkdexSettingsPane />
+
+              <ShowdownSettingsPane /> */}
 
               <div className={styles.notice}>
-                plz excuse the mess, this is a work in progress
+                {t('pane.footer.message', 'if you\'re seeing this, this shit broke af fam')}
                 <br />
                 <span className={styles.face}>
                   (｡◕‿◕｡)

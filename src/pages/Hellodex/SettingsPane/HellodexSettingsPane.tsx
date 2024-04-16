@@ -1,27 +1,23 @@
 import * as React from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Field } from 'react-final-form';
 import cx from 'classnames';
 import { Switch } from '@showdex/components/form';
 import { type ShowdexHellodexSettings } from '@showdex/interfaces/app';
-import { useAuthUsername } from '@showdex/redux/store';
-import { findPlayerTitle } from '@showdex/utils/app';
 import styles from './SettingsPane.module.scss';
 
 export interface HellodexSettingsPaneProps {
   className?: string;
   style?: React.CSSProperties;
-  value?: ShowdexHellodexSettings;
-  // inBattle?: boolean;
+  special?: boolean;
 }
 
 export const HellodexSettingsPane = ({
   className,
   style,
-  value,
-  // inBattle,
+  special,
 }: HellodexSettingsPaneProps): JSX.Element => {
-  const authUsername = useAuthUsername();
-  const authTitle = React.useMemo(() => findPlayerTitle(authUsername, true), [authUsername]);
+  const { t } = useTranslation('settings');
 
   return (
     <div
@@ -29,7 +25,7 @@ export const HellodexSettingsPane = ({
       style={style}
     >
       <div className={styles.settingsGroupTitle}>
-        Hellodex
+        {t('pane.sections.primary.hellodex')}
       </div>
 
       <div className={styles.settingsGroupFields}>
@@ -37,18 +33,15 @@ export const HellodexSettingsPane = ({
           name="hellodex.openOnStart"
           component={Switch}
           className={cx(styles.field, styles.switchField)}
-          label="Open When Showdown Starts"
+          label={t('hellodex.openOnStart.label') as React.ReactNode}
           tooltip={(
-            <div className={styles.tooltipContent}>
-              <em>
-                This is actually a planned feature!
-                <br />
-                If you're like wtf how would I access these settings again after
-                disabling this, the answer is...
-                <br />
-                Stay tuned!
-              </em>
-            </div>
+            <Trans
+              t={t}
+              i18nKey="hellodex.openOnStart.tooltip"
+              parent="div"
+              className={styles.tooltipContent}
+              shouldUnescape
+            />
           )}
           readOnly
         />
@@ -57,15 +50,15 @@ export const HellodexSettingsPane = ({
           name="hellodex.focusRoomsRoom"
           component={Switch}
           className={cx(styles.field, styles.switchField)}
-          label="Show Chatrooms Panel"
+          label={t('hellodex.focusRoomsRoom.label') as React.ReactNode}
           tooltip={(
-            <div className={styles.tooltipContent}>
-              Miss the default chatrooms panel when Showdown first starts?
-              Disabling this won't auto-focus the Hellodex tab.
-              <br />
-              <br />
-              This does not affect <em>Single Panel</em> users.
-            </div>
+            <Trans
+              t={t}
+              i18nKey="hellodex.focusRoomsRoom.tooltip"
+              parent="div"
+              className={styles.tooltipContent}
+              shouldUnescape
+            />
           )}
         />
 
@@ -73,42 +66,38 @@ export const HellodexSettingsPane = ({
           name="hellodex.showBattleRecord"
           component={Switch}
           className={cx(styles.field, styles.switchField)}
-          label="Show Win/Loss Counter"
+          label={t('hellodex.showBattleRecord.label') as React.ReactNode}
           tooltip={(
-            <div className={styles.tooltipContent}>
-              Displays a Win/Loss counter in the Hellodex for <em>funsies</em>.
-              <br />
-              <br />
-              Only records games that you've played (i.e., ignores spectating games).
-              Won't appear if there are no recorded wins or losses.
-              <br />
-              <br />
-              Recorded amounts don't persist between sessions; i.e., will reset back to 0W-0L
-              as soon as you refresh the page.
-            </div>
+            <Trans
+              t={t}
+              i18nKey="hellodex.showBattleRecord.tooltip"
+              parent="div"
+              className={styles.tooltipContent}
+              shouldUnescape
+            />
           )}
         />
 
         {
-          (!!authTitle || !value?.showDonateButton) &&
+          special &&
           <>
             <div className={styles.settingsGroupTitle}>
-              Special
+              {t('pane.sections.secondary.special')}
             </div>
 
             <Field<ShowdexHellodexSettings['showDonateButton']>
               name="hellodex.showDonateButton"
               component={Switch}
               className={cx(styles.field, styles.switchField)}
-              label="Show Donate Button"
+              label={t('hellodex.showDonateButton.label') as React.ReactNode}
               tooltip={(
-                <div className={styles.tooltipContent}>
-                  Shows the donate button in the Hellodex.
-                  <br />
-                  <br />
-                  If you're seeing this, you're either very special to us or you're a 1337 hax0r.
-                  Either way, feel free to turn this off.
-                </div>
+                <Trans
+                  t={t}
+                  i18nKey="hellodex.showDonateButton.tooltip"
+                  parent="div"
+                  className={styles.tooltipContent}
+                  shouldUnescape
+                />
               )}
             />
           </>

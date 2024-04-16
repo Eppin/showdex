@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Field } from 'react-final-form';
 import cx from 'classnames';
 import { Switch } from '@showdex/components/form';
@@ -8,37 +9,40 @@ import styles from './SettingsPane.module.scss';
 export interface ShowdownSettingsPaneProps {
   className?: string;
   style?: React.CSSProperties;
-  children?: React.ReactNode;
 }
 
 export const ShowdownSettingsPane = ({
   className,
   style,
-  children,
-}: ShowdownSettingsPaneProps): JSX.Element => (
-  <div
-    className={cx(styles.settingsGroup, className)}
-    style={style}
-  >
-    <div className={styles.settingsGroupTitle}>
-      Showdown
-    </div>
+}: ShowdownSettingsPaneProps): JSX.Element => {
+  const { t } = useTranslation('settings');
 
-    <div className={styles.settingsGroupFields}>
-      <Field<ShowdexShowdownSettings['autoAcceptSheets']>
-        name="showdown.autoAcceptSheets"
-        component={Switch}
-        className={cx(styles.field, styles.switchField)}
-        label="Auto-Accept Team Sheets"
-        tooltip={(
-          <div className={styles.tooltipContent}>
-            Enabling this will automatically accept Open Team Sheet requests,
-            which are typical of VGC formats.
-          </div>
-        )}
-      />
-    </div>
+  return (
+    <div
+      className={cx(styles.settingsGroup, className)}
+      style={style}
+    >
+      <div className={styles.settingsGroupTitle}>
+        Showdown
+      </div>
 
-    {children}
-  </div>
-);
+      <div className={styles.settingsGroupFields}>
+        <Field<ShowdexShowdownSettings['autoAcceptSheets']>
+          name="showdown.autoAcceptSheets"
+          component={Switch}
+          className={cx(styles.field, styles.switchField)}
+          label={t('showdown.autoAcceptSheets.label') as React.ReactNode}
+          tooltip={(
+            <Trans
+              t={t}
+              i18nKey="showdown.autoAcceptSheets.tooltip"
+              parent="div"
+              className={styles.tooltipContent}
+              shouldUnescape
+            />
+          )}
+        />
+      </div>
+    </div>
+  );
+};

@@ -4,14 +4,6 @@ import { type CalcdexPokemon } from './CalcdexPokemon';
 
 export interface CalcdexPlayer extends CalcdexLeanSide {
   /**
-   * Nonce of the player, but not sure if this is actually being used anymore.
-   *
-   * @deprecated As of v0.1.3, probably not being used anymore.
-   * @since 0.1.0
-   */
-  calcdexNonce?: string;
-
-  /**
    * Whether the player is active in the battle.
    *
    * * This value will initially be `false` until the player is properly initialized.
@@ -21,6 +13,13 @@ export interface CalcdexPlayer extends CalcdexLeanSide {
    * @since 1.1.3
    */
   active?: boolean;
+
+  /**
+   * Player's Elo rating.
+   *
+   * @since 0.1.0
+   */
+  rating?: string | number;
 
   /**
    * Index of the `CalcdexPokemon` that is currently active on the field.

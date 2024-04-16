@@ -1,5 +1,6 @@
 import { type ShowdexCalcdexSettings } from './ShowdexCalcdexSettings';
 import { type ShowdexHellodexSettings } from './ShowdexHellodexSettings';
+import { type ShowdexHonkdexSettings } from './ShowdexHonkdexSettings';
 import { type ShowdexShowdownSettings } from './ShowdexShowdownSettings';
 
 /**
@@ -8,6 +9,14 @@ import { type ShowdexShowdownSettings } from './ShowdexShowdownSettings';
  * @since 1.0.2
  */
 export interface ShowdexSettings {
+  /**
+   * Language locale that Showdex should appear in.
+   *
+   * @default 'en'
+   * @since 1.2.1
+   */
+  locale: string;
+
   /**
    * Current color scheme.
    *
@@ -25,6 +34,18 @@ export interface ShowdexSettings {
    * @since 1.0.3
    */
   forcedColorScheme: 'showdown' | Showdown.ColorScheme;
+
+  /**
+   * Tastefully blurs the background of all Showdex panels.
+   *
+   * * This includes the Calcdex battle overlay, which will slightly show the chat behind it.
+   * * Due to the background blur being expensive to paint (potentially causing some lag), this setting is opt-in.
+   * * ...& about the name, couldn't resist, sorry.
+   *
+   * @default false
+   * @since 1.2.0
+   */
+  glassyTerrain: boolean;
 
   /**
    * Whether advanced developer options should be available to the user.
@@ -48,6 +69,13 @@ export interface ShowdexSettings {
    * @since 1.0.3
    */
   calcdex: ShowdexCalcdexSettings;
+
+  /**
+   * Honkdex-specific settings.
+   *
+   * @since 1.2.0
+   */
+  honkdex: ShowdexHonkdexSettings;
 
   /**
    * Showdown-specific settings.

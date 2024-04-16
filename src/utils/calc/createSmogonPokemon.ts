@@ -4,18 +4,24 @@ import {
   type Specie,
   Pokemon as SmogonPokemon,
 } from '@smogon/calc';
-import { PokemonPseudoToggleAbilities, PokemonRuinAbilities } from '@showdex/consts/dex';
+import {
+  PokemonBoostNames,
+  PokemonPseudoToggleAbilities,
+  PokemonRuinAbilities,
+  PokemonSturdyAbilities,
+} from '@showdex/consts/dex';
 import { type CalcdexPokemon } from '@showdex/interfaces/calc';
-import { formatId, nonEmptyObject } from '@showdex/utils/core';
+import { clamp, formatId, nonEmptyObject } from '@showdex/utils/core';
 import { logger } from '@showdex/utils/debug';
 import {
   detectGenFromFormat,
   detectLegacyGen,
-  getDefaultSpreadValue,
+  // getDefaultSpreadValue,
   getGenDexForFormat,
   notFullyEvolved,
 } from '@showdex/utils/dex';
 import { calcPokemonHpPercentage } from './calcPokemonHp';
+import { calcStatAutoBoosts } from './calcStatAutoBoosts';
 
 export type SmogonPokemonOptions = ConstructorParameters<typeof SmogonPokemon>[2];
 export type SmogonPokemonOverrides = SmogonPokemonOptions['overrides'];
@@ -45,8 +51,8 @@ export const createSmogonPokemon = (
   }
 
   const legacy = detectLegacyGen(gen);
-  const defaultIv = getDefaultSpreadValue('iv', format);
-  const defaultEv = getDefaultSpreadValue('ev', format);
+  // const defaultIv = getDefaultSpreadValue('iv', format);
+  // const defaultEv = getDefaultSpreadValue('ev', format);
 
   // nullish-coalescing (`??`) here since `item` can be cleared by the user (dirtyItem) in PokeInfo
   // (note: when cleared, `dirtyItem` will be set to null, which will default to `item`)
@@ -81,7 +87,7 @@ export const createSmogonPokemon = (
       ? null
       : pokemon.status;
 
-  const ability = (!legacy && (pokemon.dirtyAbility ?? pokemon.ability)) || null;
+  const ability = (!legacy && (pokemon.dirtyAbility || pokemon.ability)) || null;
   const abilityId = formatId(ability);
 
   // note: these are in the PokemonToggleAbilities list, but isn't technically toggleable, per se.
@@ -107,16 +113,13 @@ export const createSmogonPokemon = (
     // also note: seems that maxhp is internally calculated in the instance's rawStats.hp,
     // so we can't specify it here
     curHP: (() => { // js wizardry
-      const shouldMultiscale = pseudoToggled
-        && ['multiscale', 'shadowshield'].includes(abilityId);
+      const shouldMultiscale = pseudoToggled && PokemonSturdyAbilities.includes(ability);
 
       // note that spreadStats may not be available yet, hence the fallback object
-      const { hp: maxHp } = pokemon.spreadStats
-        || { hp: pokemon.maxhp || 100 };
+      const maxHp = pokemon.spreadStats?.hp || pokemon.maxhp || 100;
+      const hp = pokemon.dirtyHp ?? (pokemon.hp || 0);
 
-      const hp = (pokemon.dirtyHp ?? (pokemon.hp || 0));
-
-      if (pokemon.serverSourced) {
+      if (pokemon.source === 'server') {
         return shouldMultiscale && !hp ? maxHp : hp;
       }
 
@@ -130,7 +133,7 @@ export const createSmogonPokemon = (
     level: pokemon.level,
     gender: pokemon.gender,
 
-    teraType: (pokemon.terastallized && pokemon.teraType) || null,
+    teraType: (pokemon.terastallized && (pokemon.dirtyTeraType || pokemon.teraType)) || null,
     status,
     toxicCounter: pokemon.toxicCounter,
 
@@ -163,35 +166,52 @@ export const createSmogonPokemon = (
     // change anything in node_modules lol
     rawStats: { ...pokemon.spreadStats } as SmogonPokemonOptions['rawStats'],
 
-    ivs: {
-      hp: pokemon.ivs?.hp ?? defaultIv,
-      atk: pokemon.ivs?.atk ?? defaultIv,
-      def: pokemon.ivs?.def ?? defaultIv,
-      spa: pokemon.ivs?.spa ?? defaultIv,
-      spd: pokemon.ivs?.spd ?? defaultIv,
-      spe: pokemon.ivs?.spe ?? defaultIv,
-    },
+    // ivs: {
+    //   hp: pokemon.ivs?.hp ?? defaultIv,
+    //   atk: pokemon.ivs?.atk ?? defaultIv,
+    //   def: pokemon.ivs?.def ?? defaultIv,
+    //   spa: pokemon.ivs?.spa ?? defaultIv,
+    //   spd: pokemon.ivs?.spd ?? defaultIv,
+    //   spe: pokemon.ivs?.spe ?? defaultIv,
+    // },
 
-    evs: {
-      hp: pokemon.evs?.hp ?? defaultEv,
-      atk: pokemon.evs?.atk ?? defaultEv,
-      def: pokemon.evs?.def ?? defaultEv,
-      spa: pokemon.evs?.spa ?? defaultEv,
-      spd: pokemon.evs?.spd ?? defaultEv,
-      spe: pokemon.evs?.spe ?? defaultEv,
-    },
+    // evs: {
+    //   hp: pokemon.evs?.hp ?? defaultEv,
+    //   atk: pokemon.evs?.atk ?? defaultEv,
+    //   def: pokemon.evs?.def ?? defaultEv,
+    //   spa: pokemon.evs?.spa ?? defaultEv,
+    //   spd: pokemon.evs?.spd ?? defaultEv,
+    //   spe: pokemon.evs?.spe ?? defaultEv,
+    // },
 
-    // update (2023/05/15): typically only used to provide the client-reported stat
-    // from Protosynthesis & Quark Drive (populated in syncPokemon() via `volatiles`)
-    boostedStat: pokemon.boostedStat,
+    // update (2024/01/24): by this point, the EVs & IVs should be fully populated, so no need to repeat this logic
+    ivs: { ...pokemon.ivs },
+    evs: { ...pokemon.evs },
 
-    boosts: {
-      atk: pokemon.dirtyBoosts?.atk ?? pokemon.boosts?.atk ?? 0,
-      def: pokemon.dirtyBoosts?.def ?? pokemon.boosts?.def ?? 0,
-      spa: pokemon.dirtyBoosts?.spa ?? pokemon.boosts?.spa ?? 0,
-      spd: pokemon.dirtyBoosts?.spd ?? pokemon.boosts?.spd ?? 0,
-      spe: pokemon.dirtyBoosts?.spe ?? pokemon.boosts?.spe ?? 0,
-    },
+    // update (2023/05/15): typically only used to provide the client-reported stat from Protosynthesis & Quark Drive
+    // (populated in syncPokemon() via `volatiles`)
+    // update (2024/01/03): apparently 'auto' is an accepted value, which is ok to fallback on since this property is
+    // only exclusively used for the aformentioned abilities LOL
+    boostedStat: pokemon.dirtyBoostedStat || pokemon.boostedStat || 'auto',
+
+    // boosts: {
+    //   atk: pokemon.dirtyBoosts?.atk ?? pokemon.boosts?.atk ?? 0,
+    //   def: pokemon.dirtyBoosts?.def ?? pokemon.boosts?.def ?? 0,
+    //   spa: pokemon.dirtyBoosts?.spa ?? pokemon.boosts?.spa ?? 0,
+    //   spd: pokemon.dirtyBoosts?.spd ?? pokemon.boosts?.spd ?? 0,
+    //   spe: pokemon.dirtyBoosts?.spe ?? pokemon.boosts?.spe ?? 0,
+    // },
+
+    boosts: PokemonBoostNames.reduce((prev, stat) => {
+      const autoBoost = calcStatAutoBoosts(pokemon, stat) || 0;
+      const boost = typeof pokemon.dirtyBoosts?.[stat] === 'number'
+        ? (pokemon.dirtyBoosts[stat] || 0)
+        : ((pokemon.boosts?.[stat] || 0) + autoBoost);
+
+      prev[stat] = clamp(-6, boost, 6);
+
+      return prev;
+    }, {} as Showdown.StatsTableNoHp),
 
     overrides: {
       // update (2022/11/06): now allowing base stat editing as a setting
@@ -252,9 +272,10 @@ export const createSmogonPokemon = (
 
   // calc will auto +1 ATK/SPA, which the client will have already reported the boosts,
   // so we won't report these abilities to the calc to avoid unintentional double boostage
-  if (['intrepidsword', 'download'].includes(abilityId)) {
-    options.ability = 'Pressure';
-  }
+  // update (2024/01/24): these are all being handled by Showdex now via the pokemon's autoBoostMap
+  // if (['intrepidsword', 'dauntlessshield', 'download'].includes(abilityId)) {
+  //   options.ability = 'Pressure';
+  // }
 
   // for Ruin abilities (gen 9), if BOTH Pokemon have the same type of Ruin ability, they'll cancel each other out
   // (@smogon/calc does not implement this mechanic yet, applying stat drops to BOTH Pokemon)
@@ -296,7 +317,7 @@ export const createSmogonPokemon = (
   );
 
   if (typeof smogonPokemon?.species?.nfe !== 'boolean') {
-    (smogonPokemon.species as Writable<Specie>).nfe = notFullyEvolved(pokemon.speciesForme);
+    (smogonPokemon.species as Writable<Specie>).nfe = notFullyEvolved(pokemon.speciesForme, format);
   }
 
   return smogonPokemon;

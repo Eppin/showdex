@@ -111,6 +111,29 @@ export const PokemonToggleAbilities: Record<GameType, AbilityName[]> = {
   Doubles: [
     ...PokemonPseudoToggleAbilities,
     ...PokemonRuinAbilities,
-    ...PokemonPseudoToggleAbilities,
+    ...PokemonPassiveToggleAbilities,
   ],
 };
+
+/**
+ * Abilities that "skin" (i.e., override) the default types of a Pokemon's moves.
+ *
+ * * Strange name comes from the words *peau* (French), *sukin* (Japanese) & *seukin* (Korean) used in the non-English
+ *   counterparts, such as for *Pixilate*:
+ *   - *peau feerique* (French)
+ *   - *fearii-sukin* (Japanese)
+ *   - *peuri-seukin* (Korean)
+ * * Couldn't think of a better name, sorry.
+ * * Update (2024/01/04): Apparently these are called "ate" abilities in `@smogon/calc`'s `gen789.ts` mechanics file,
+ *   which I initially saw awhile back & was like wait Pokemon can *eat* abilities ????????
+ *   - I suppose the *Commander* ability kinda counts LOL
+ *
+ * @since 1.2.0
+ */
+export const PokemonMoveSkinAbilities: Record<AbilityName, Showdown.TypeName> = {
+  Aerilate: 'Flying',
+  Galvanize: 'Electric',
+  Normalize: 'Normal',
+  Pixilate: 'Fairy',
+  Refrigerate: 'Ice',
+} as Record<AbilityName, Showdown.TypeName>;

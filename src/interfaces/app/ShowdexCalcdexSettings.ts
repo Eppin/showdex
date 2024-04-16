@@ -1,5 +1,4 @@
-import { type CalcdexPlayerKey } from '@showdex/interfaces/calc';
-import { type CalcdexRenderMode } from '@showdex/redux/store';
+import { type CalcdexPlayerKey, type CalcdexRenderMode } from '@showdex/interfaces/calc';
 import { type CalcdexMatchupNhkoColors, type CalcdexMatchupNhkoLabels } from '@showdex/utils/calc';
 
 /**
@@ -257,6 +256,35 @@ export interface ShowdexCalcdexSettings {
   includeTeambuilder: 'always' | 'teams' | 'boxes' | 'never';
 
   /**
+   * Whether to include OM (Other Metagame) presets, like AAA (Almost Any Ability), in legal-locked formats, like OU.
+   *
+   * * Affects presets of any source, including `'storage'`/`'storage-box'` (i.e., Teambuilder) & `'smogon'`.
+   *   - `'server'`, `'sheet'` & `'import'` sources will always be of the current format, so this won't have any effect.
+   * * Has no effect if the current format is an OM (otherwise we'd have no presets, duh!).
+   * * When disabled (default), any preset with a non-legal-locked format as determined by `legalLockedFormat()` will
+   *   be omitted from the auto-preset & preset options.
+   *
+   * @default false
+   * @since 1.2.1
+   */
+  includeOtherMetaPresets: boolean;
+
+  /**
+   * Additional bundled presets to load, if any.
+   *
+   * * These can only be selected from if the metadata for each bundled preset is defined in `ShowdexPresetsBundles[]`
+   *   from `@showdex/consts/app`.
+   * * Each value refers to the bundle's `id`.
+   *
+   * @default
+   * ```ts
+   * []
+   * ```
+   * @since 1.2.1
+   */
+  includePresetsBundles: string[];
+
+  /**
    * Whether to auto-import and apply presets derived from open team sheets or the `!showteam` chat command.
    *
    * @default true
@@ -350,6 +378,20 @@ export interface ShowdexCalcdexSettings {
    * @since 1.0.6
    */
   showMoveEditor: 'always' | 'meta' | 'never';
+
+  /**
+   * Whether to dynamically show quick editor fields in the moves table.
+   *
+   * * For now, this is only being used to allow quick setting of the `hits` property of a given `CalcdexMoveOverride`.
+   *   - For example, when enabled, the move *Icicle Spear*, a multi-hitting move, will show a number input representing
+   *     the number of hits, followed by the same 'ol damage range text.
+   *   - Additionally, the `hits` property can be edited within the moves editor, enabled via `showMoveEditor`.
+   *   - (If the move editor is disabled, then the quick editor fields are the only ways to change the values.)
+   *
+   * @default true
+   * @since 1.2.0
+   */
+  enableQuickEditor: boolean;
 
   /**
    * Whether to allow the Pokemon's base stats to be edited in the stats table.

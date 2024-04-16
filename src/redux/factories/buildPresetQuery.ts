@@ -1,10 +1,11 @@
 import { HttpMethod } from '@showdex/consts/core';
+import { type PkmnApiSmogonPresetRequest } from '@showdex/interfaces/api';
 import { type CalcdexPokemonPreset, type CalcdexPokemonPresetSource } from '@showdex/interfaces/calc';
-import { type PkmnApiSmogonPresetRequest } from '@showdex/redux/services';
 import { env, nonEmptyObject, runtimeFetch } from '@showdex/utils/core';
 import { logger, runtimer } from '@showdex/utils/debug';
-import { cachePresets } from '@showdex/utils/presets/cachePresets'; /** @todo fix circular dependency import */
-import { getCachedPresets } from '@showdex/utils/presets/getCachedPresets'; /** @todo fix circular dependency import */
+import { readPresetsDb, writePresetsDb } from '@showdex/utils/storage';
+// import { cachePresets } from '@showdex/utils/presets/cachePresets'; /** @todo fix circular dependency import */
+// import { getCachedPresets } from '@showdex/utils/presets/getCachedPresets'; /** @todo fix circular dependency import */
 
 const l = logger('@showdex/redux/factories/buildPresetQuery()');
 
@@ -72,6 +73,10 @@ const FormatReplacements: [test: RegExp, replace: RegExp, replacement: string][]
   // Randomized Format Spotlight as of 2023/11/14, requested by Pulse_kS
   // e.g., 'gen9partnersincrimerandombattle' -> 'gen9randomdoublesbattle'
   [/partnersincrimerandom/i, null, 'randomdoubles'],
+
+  // Randomized Format Spotlight as of 2024/01/10
+  // e.g., 'gen6firstbloodrandombattle' -> 'gen6randombattle'
+  [/firstblood/i, null, ''],
 ];
 
 // 10/10 function name
@@ -102,20 +107,23 @@ const formatEndpointFormat = (
  *
  * @since 1.1.6
  */
-export const buildPresetQuery = <TResponse>(
+export const buildPresetQuery = <
+  TResponse,
+  TMeta = unknown,
+>(
   source: CalcdexPokemonPresetSource,
   path: string,
   transformer: (
     args: PkmnApiSmogonPresetRequest,
   ) => (
     data: TResponse,
-    meta: unknown,
+    meta: TMeta,
     args: PkmnApiSmogonPresetRequest,
   ) => CalcdexPokemonPreset[],
 ): (
   args: PkmnApiSmogonPresetRequest,
 ) => Promise<{
-  data: CalcdexPokemonPreset[],
+  data: CalcdexPokemonPreset[];
 }> => {
   if (!source || !path || typeof transformer !== 'function') {
     l.error(
@@ -148,19 +156,23 @@ export const buildPresetQuery = <TResponse>(
     );
 
     // attempt to guess the endpoint from the args
-    const endpoint = filterByFormat
-      ? formatEndpointFormat(format)
-      : `gen${gen}`;
-
+    const endpoint = (filterByFormat && formatEndpointFormat(format)) || `gen${gen}`;
     const cacheEnabled = nonEmptyObject(maxAge);
 
     if (cacheEnabled) {
-      const [presets, stale] = getCachedPresets(
-        endpoint,
+      // const [presets, stale] = getCachedPresets(
+      //   endpoint,
+      //   source,
+      //   maxAge,
+      // );
+
+      const presets = await readPresetsDb(format, {
+        formatOnly,
         source,
         maxAge,
-      );
+      });
 
+      /*
       if (presets?.length) {
         output = presets;
 
@@ -169,6 +181,13 @@ export const buildPresetQuery = <TResponse>(
 
           return { data: output };
         }
+      }
+      */
+
+      if (presets.length) {
+        endTimer('(cache hit)', 'endpoint', endpoint);
+
+        return { data: presets };
       }
     }
 
@@ -193,7 +212,7 @@ export const buildPresetQuery = <TResponse>(
       const transform = transformer(args);
 
       if (typeof transform === 'function') {
-        output = transform(data, null, args);
+        output = transform(data, { resHeaders: response.headers } as TMeta, args);
       }
     } catch (error) {
       // use the cache if we have to lol
@@ -208,7 +227,8 @@ export const buildPresetQuery = <TResponse>(
 
     // update the cache if enabled
     if (cacheEnabled && output.length) {
-      cachePresets(output, endpoint, source);
+      // cachePresets(output, endpoint, source);
+      void writePresetsDb(output);
     }
 
     endTimer('(cache miss)', 'endpoint', endpoint);
