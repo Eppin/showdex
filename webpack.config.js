@@ -20,7 +20,8 @@ const mode = __DEV__ ? 'development' : 'production';
 export const buildTargets = [
   'chrome',
   'firefox',
-  'standalone',
+  'safari',
+  'standalone', 
 ];
 
 // __dirname is not available in ESModules lmao
@@ -453,9 +454,56 @@ const copyPatterns = [
           break;
         }
 
-        default: {
-          break;
+      case 'safari': {
+        // set to Manifest V3 (MV3) for Safari
+        parsed.manifest_version = 3;
+
+        // applications is not used on Safari
+        delete parsed.applications;
+
+        // remove MV2-specific background properties
+        delete parsed.background.persistent;
+        delete parsed.background.scripts;
+
+        // set Firefox-specific permissions
+        const { permissions = [] } = applications.gecko;
+
+        parsed.permissions.unshift(...permissions);
+        delete applications.gecko.permissions;
+
+        // auto-fill in matches for content_scripts, web_accessible_resources,
+        // and externally_connectable
+        parsed.content_scripts[0].matches = [...matches];
+        parsed.web_accessible_resources[0].matches = [...matches];
+        parsed.externally_connectable.matches = [...matches];
+
+        // add source maps to web_accessible_resources
+        parsed.web_accessible_resources[0].resources.unshift(
+          'background.js.map',
+          'content.js.map',
+          'main.js.map',
+        );
+
+        if (__DEV__) {
+          parsed.web_accessible_resources[0].resources.unshift(
+            '*.hot-update.js.map',
+            '*.hot-update.json',
+          );
         }
+
+        // auto-fill action properties
+        parsed.action.default_title = parsed.name;
+        parsed.action.default_icon = { ...parsed.icons };
+
+        // remove properties not supported on MV2
+        delete parsed.host_permissions;
+        delete parsed.externally_connectable;
+
+        break;
+      }
+
+      default: {
+        break;
       }
 
       return Buffer.from(JSON.stringify(parsed));

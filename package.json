@@ -36,6 +36,7 @@
     "clean:prod": "yarn clean:prod:chrome; yarn clean:prod:firefox; yarn clean:prod:standalone",
     "clean:prod:chrome": "yarn rimraf ./dist/chrome ./dist/*.chrome.zip ./dist/*.chrome.html",
     "clean:prod:firefox": "yarn rimraf ./dist/firefox ./dist/*.firefox.xpi ./dist/*.firefox.html",
+    "clean:prod:safari": "yarn rimraf ./dist/safari ./dist/*.safari.zip ./dist/*.safari.html",
     "clean:prod:standalone": "yarn rimraf ./dist/standalone ./dist/*.standalone.html",
     "dev": "yarn dev:chrome",
     "dev:nc": "yarn cache:purge && yarn cross-env DEV_BABEL_CACHE_ENABLED=false DEV_WEBPACK_CACHE_ENABLED=false yarn dev",
@@ -56,6 +57,8 @@
     "build:firefox": "yarn clean:prod:firefox && yarn cross-env NODE_ENV=production BUILD_TARGET=firefox node --conditions=production --experimental-specifier-resolution=node ./scripts/build",
     "build:firefox:fast": "yarn cross-env PROD_ANALYZE_BUNDLES=false yarn build:firefox",
     "build:firefox:re": "yarn cache:purge && yarn build:firefox",
+    "build:safari": "yarn clean:prod:safari && NODE_ENV=production BUILD_TARGET=safari node --conditions=production --experimental-specifier-resolution=node -- ./scripts/build",
+    "build:safari:re": "yarn cache:purge && yarn build:safari"
     "build:standalone": "yarn clean:prod:standalone && yarn cross-env NODE_ENV=production BUILD_TARGET=standalone node --conditions=production --experimental-specifier-resolution=node ./scripts/build",
     "build:standalone:fast": "yarn cross-env PROD_ANALYZE_BUNDLES=false yarn build:standalone",
     "build:standalone:re": "yarn cache:purge && yarn build:standalone"
